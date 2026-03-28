@@ -1,0 +1,20 @@
+﻿
+­ƒôï Hoja: "CALCULOS" (8 filas)
+   Headers: Calculos para pedidos | __EMPTY | __EMPTY_1 | __EMPTY_2 | __EMPTY_3 | __EMPTY_4 | __EMPTY_5 | __EMPTY_6 | __EMPTY_7 | __EMPTY_8 | __EMPTY_9 | __EMPTY_10 | __EMPTY_11 | __EMPTY_12
+   Fila 1: Calculos para pedidos="" | __EMPTY="Valor d├│lar cliente" | __EMPTY_1="Valor libra" | __EMPTY_2="Cargo fijo envio" | __EMPTY_3="% ganancia" | __EMPTY_4="IVA" | __EMPTY_5="" | __EMPTY_6="" | __EMPTY_7="" | __EMPTY_8="" | __EMPTY_9="" | __EMPTY_10="" | __EMPTY_11="" | __EMPTY_12=""
+
+­ƒôï Hoja: "STOCK" (17 filas)
+   Headers:  STOCK  | __EMPTY | __EMPTY_1 | __EMPTY_2 | __EMPTY_3 | __EMPTY_4 | __EMPTY_5 | __EMPTY_6 | __EMPTY_7 | __EMPTY_8 | __EMPTY_9 |  PERFUMES  | 30%
+   Fila 1:  STOCK ="" | __EMPTY="" | __EMPTY_1="" | __EMPTY_2="" | __EMPTY_3="" | __EMPTY_4="" | __EMPTY_5="" | __EMPTY_6="" | __EMPTY_7="" | __EMPTY_8="" | __EMPTY_9="" |  PERFUMES ="ROPA" | 30%="50% - 80%"
+
+­ƒôï Hoja: "DEUDORES" (2 filas)
+   Headers:  Cliente  |  Referencia  |  TRACKING  |  Talla  | Valor ORIGINAL |  Precio total  |  Anticipo  |  Abono 1  |  Abono 2  |  Restante  |  Pagado nosotros  |  EN CASILLERO  |  Fecha entrega  |  GANANCIA  | CELULAR | DIRECCION DE ENTREGA |  $ -   
+   Fila 1:  Cliente ="Julian Londo├▒o" |  Referencia ="Nike AF1" |  TRACKING ="1ZYW72270340219533" |  Talla ="8US H" | Valor ORIGINAL="Sun May 11 2836 00:00:16 GMT-0500 (hora est├índar de Colombia)" |  Precio total ="342000" |  Anticipo ="0" |  Abono 1 ="0" |  Abono 2 ="0" |  Restante ="342000" |  Pagado nosotros ="342000" |  EN CASILLERO ="ENTREGADO" |  Fecha entrega ="46068" |  GANANCIA ="0" | CELULAR="0" | DIRECCION DE ENTREGA="0" |  $ -   ="0"
+
+­ƒôï Hoja: "VENTAS" (132 filas)
+   Headers: Fecha compra | Cliente | Referencia | TRACKING | Talla | Valor ORIGINAL | Precio total | Anticipo | Abono 1 | Abono 2 | Restante | Pagado nosotros | EN CASILLERO | Fecha entrega | GANANCIA | CELULAR | DIRECCION DE ENTREGA
+   Fila 1: Fecha compra="Fri Mar 06 2026 00:00:16 GMT-0500 (hora est├índar de Colombia)" | Cliente="Andres Alzate" | Referencia="Nike Dunk Low" | TRACKING="X" | Talla="7US M" | Valor ORIGINAL="328526.84" | Precio total="470000" | Anticipo="470000" | Abono 1="0" | Abono 2="0" | Restante="0" | Pagado nosotros="-141473.15999999997" | EN CASILLERO="NO" | Fecha entrega="-" | GANANCIA="141473.15999999997" | CELULAR="" | DIRECCION DE ENTREGA=""
+
+­ƒôï Hoja: "GASTOS" (27 filas)
+   Headers: Gastado | __EMPTY | __EMPTY_1 | CAMI
+   Fila 1: Gastado="571773.06" | __EMPTY="GUAYOS, INITIATOR" | __EMPTY_1="" | CAMI="JULIAN"
