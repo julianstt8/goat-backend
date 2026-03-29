@@ -21,7 +21,7 @@ export const Producto = sequelize.define('Producto', {
   },
   peso_libras: {
     type: DataTypes.DECIMAL(10, 2),
-    defaultValue: 1.0
+    defaultValue: 2.0
   },
   talla: {
     type: DataTypes.STRING(150),
