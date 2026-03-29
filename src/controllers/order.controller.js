@@ -241,3 +241,94 @@ export async function deleteOrder(req, res, next) {
     next(err);
   }
 }
+
+/**
+ * @openapi
+ * /orders/batch:
+ *   post:
+ *     summary: Crear múltiples pedidos desde una cotización (Batch)
+ *     tags: [Pedidos]
+ *     security:
+ *       - bearerAuth: []
+ */
+export async function createBatchOrder(req, res, next) {
+   const t = await sequelize.transaction();
+   try {
+      const { id: creadoPor } = req.user;
+      const { items, cliente, trm_used } = req.body;
+
+      if (!items || !cliente || !trm_used) {
+         return res.status(400).json({ message: 'items, cliente y trm_used son requeridos' });
+      }
+
+      // 1. Resolver Cliente (Usuario)
+      let usuarioId = cliente.id;
+      if (!usuarioId) {
+         // Buscar por email si no tiene ID
+         const u = await Usuario.findOne({ where: { email: cliente.email.toLowerCase() }, transaction: t });
+         if (u) {
+            usuarioId = u.id;
+         } else {
+            // Crear nuevo cliente
+            const nuevoUser = await Usuario.create({
+               nombre_completo: cliente.nombre,
+               email: cliente.email.toLowerCase(),
+               telefono: cliente.telefono || null,
+               rol: TIPO_ROL.CLIENTE_STANDARD,
+               nivel: 'bronze',
+               activo: true
+            }, { transaction: t });
+            usuarioId = nuevoUser.id;
+         }
+      }
+
+      const createdOrders = [];
+
+      // 2. Procesar cada ítem
+      for (const item of items) {
+         // Crear Producto (siempre nuevo ítem para cotización externa)
+         const prod = await Producto.create({
+            referencia: item.referencia,
+            categoria_id: item.categoria_id || null, // Se asume null si no se envió
+            talla: 'N/A', // O extraer si se envía en el objeto ítem
+            precio_compra_usd: item.precioCompraUsd,
+            peso_libras: item.pesoLibras || 1.0,
+            vendido: true
+         }, { transaction: t });
+
+         // Calcular precio venta basado en el margen (repetir lógica del frontend por integridad)
+         // O mejor, recibir el precio calculado desde el frontend
+         const logistica_fija_usd = 20; // Default
+         const baseCompraCop = item.precioCompraUsd * trm_used;
+         const logisticaCop = logistica_fija_usd * trm_used;
+         const pesoCop = (Number(item.pesoLibras) * 2.5) * trm_used;
+         const totalCostCop = baseCompraCop + logisticaCop + pesoCop;
+         const precioVentaFinal = Math.ceil((totalCostCop / 0.85) / 1000) * 1000;
+
+         // Crear Pedido
+         const pedido = await Pedido.create({
+            usuario_id: usuarioId,
+            producto_id: prod.id,
+            estado_logistico: 'pendiente',
+            precio_venta_cop: precioVentaFinal,
+            trm_utilizada: trm_used,
+            costo_total_usd: item.precioCompraUsd,
+            creado_por: creadoPor,
+            fecha_compra: new Date()
+         }, { transaction: t });
+
+         createdOrders.push(pedido);
+      }
+
+      await t.commit();
+      res.status(201).json({ 
+         message: `¡${createdOrders.length} pedidos registrados con éxito!`, 
+         cliente_id: usuarioId,
+         pedidos: createdOrders 
+      });
+
+   } catch (err) {
+      await t.rollback();
+      next(err);
+   }
+}

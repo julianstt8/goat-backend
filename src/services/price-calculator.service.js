@@ -1,6 +1,6 @@
-import trmService from './trm.service.js';
-import { Configuracion } from '../database/models/configuracion.model.js';
-import { Categoria } from '../database/models/categoria.model.js';
+import trmService from "./trm.service.js";
+import { Configuracion } from "../database/models/configuracion.model.js";
+import { Categoria } from "../database/models/categoria.model.js";
 
 /**
  * ═══════════════════════════════════════════════════════════
@@ -15,14 +15,13 @@ import { Categoria } from '../database/models/categoria.model.js';
  * ═══════════════════════════════════════════════════════════
  */
 class PriceCalculatorService {
-
   /** Valores seguros si la BD aún no tiene configuraciones */
   static DEFAULTS = {
-    trm_offset:           200,   // COP de colchón sobre TRM oficial
-    fixed_shipping_usd:    16,   // Cargo fijo de envío internacional
-    iva_percent:            0,   // Sin IVA por defecto
-    shipping_lb_sneakers:   2.0, // USD/lb Sneakers y Ropa
-    shipping_lb_perfume:    3.5  // USD/lb Perfumes y líquidos
+    trm_offset: 200, // COP de colchón sobre TRM oficial
+    fixed_shipping_usd: 16, // Cargo fijo de envío internacional
+    iva_percent: 0, // Sin IVA por defecto
+    shipping_lb_sneakers: 2.0, // USD/lb Sneakers y Ropa
+    shipping_lb_perfume: 3.5, // USD/lb Perfumes y líquidos
   };
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -49,26 +48,38 @@ class PriceCalculatorService {
    * Si se pasa categoria_id, los lee desde BD.
    * Si no, usa los valores pasados manualmente o los defaults.
    */
-  async _resolveCategoria({ categoria_id, categoriaTexto, margenBase, cargoLibraUsd, config }) {
+  async _resolveCategoria({
+    categoria_id,
+    categoriaTexto,
+    margenBase,
+    cargoLibraUsd,
+    config,
+  }) {
     if (categoria_id) {
       try {
         const cat = await Categoria.findByPk(categoria_id);
         if (cat) {
           return {
             nombre: cat.nombre,
-            margen: Number(cat.margen_base ?? 0.20),
-            cargoLibra: Number(cat.cargo_libra_usd ?? config.shipping_lb_sneakers)
+            margen: Number(cat.margen_base ?? 0.15),
+            cargoLibra: Number(
+              cat.cargo_libra_usd ?? config.shipping_lb_sneakers,
+            ),
           };
         }
-      } catch { /* silencioso, usa fallback */ }
+      } catch {
+        /* silencioso, usa fallback */
+      }
     }
 
     // Fallback: decidir cargo por libra según nombre de categoría
-    const esPerfume = /perfum|liquid/i.test(categoriaTexto ?? '');
+    const esPerfume = /perfum|liquid/i.test(categoriaTexto ?? "");
     return {
-      nombre: categoriaTexto ?? 'Sin categoría',
-      margen: margenBase ?? 0.20,
-      cargoLibra: cargoLibraUsd ?? (esPerfume ? config.shipping_lb_perfume : config.shipping_lb_sneakers)
+      nombre: categoriaTexto ?? "Sin categoría",
+      margen: margenBase ?? 0.15,
+      cargoLibra:
+        cargoLibraUsd ??
+        (esPerfume ? config.shipping_lb_perfume : config.shipping_lb_sneakers),
     };
   }
 
@@ -89,12 +100,12 @@ class PriceCalculatorService {
   async cotizar(p) {
     const {
       precioCompraUsd,
-      pesoLibras = 1.0,
+      pesoLibras = 3.0,
       categoria_id,
-      categoriaTexto = '',
+      categoriaTexto = "",
       margenBase,
       cargoLibraUsd,
-      trmManual
+      trmManual,
     } = p;
 
     // 1. Config desde BD
@@ -103,7 +114,7 @@ class PriceCalculatorService {
     // 2. TRM
     let trmInfo;
     if (trmManual) {
-      trmInfo = { valor: Number(trmManual), fuente: 'manual', cachedAt: null };
+      trmInfo = { valor: Number(trmManual), fuente: "manual", cachedAt: null };
     } else {
       trmInfo = await trmService.getCurrentTrm();
     }
@@ -112,18 +123,23 @@ class PriceCalculatorService {
 
     // 3. Parámetros de categoría
     const cat = await this._resolveCategoria({
-      categoria_id, categoriaTexto, margenBase, cargoLibraUsd, config
+      categoria_id,
+      categoriaTexto,
+      margenBase,
+      cargoLibraUsd,
+      config,
     });
 
     // 4. Cálculos en USD ─────────────────────────────────────────────
-    const cargoEnvioUsd  = pesoLibras * cat.cargoLibra;
-    const cargoFijoUsd   = config.fixed_shipping_usd;
-    const gananciaUsd    = precioCompraUsd * cat.margen;
-    const subtotalUsd    = precioCompraUsd + cargoEnvioUsd + cargoFijoUsd + gananciaUsd;
+    const cargoEnvioUsd = pesoLibras * cat.cargoLibra;
+    const cargoFijoUsd = config.fixed_shipping_usd;
+    const gananciaUsd = precioCompraUsd * cat.margen;
+    const subtotalUsd =
+      precioCompraUsd + cargoEnvioUsd + cargoFijoUsd + gananciaUsd;
 
     // 5. Conversión a COP ────────────────────────────────────────────
-    const copSinIva      = subtotalUsd * trmCliente;
-    const copConIva      = copSinIva * (1 + config.iva_percent);
+    const copSinIva = subtotalUsd * trmCliente;
+    const copConIva = copSinIva * (1 + config.iva_percent);
     const precioFinalCop = this._roundUpToThousand(copConIva);
 
     // 6. Resultado detallado ─────────────────────────────────────────
@@ -133,7 +149,7 @@ class PriceCalculatorService {
         precioCompraUsd,
         pesoLibras,
         categoria: cat.nombre,
-        margen: `${(cat.margen * 100).toFixed(0)}%`
+        margen: `${(cat.margen * 100).toFixed(0)}%`,
       },
 
       // ─ TRM
@@ -142,32 +158,32 @@ class PriceCalculatorService {
         offset: config.trm_offset,
         cliente: trmCliente,
         fuente: trmInfo.fuente,
-        actualizado: trmInfo.cachedAt
+        actualizado: trmInfo.cachedAt,
       },
 
       // ─ Desglose USD
       usd: {
         precio_compra: Number(precioCompraUsd.toFixed(2)),
-        ganancia:      Number(gananciaUsd.toFixed(2)),
-        cargo_libra:   Number(cargoEnvioUsd.toFixed(2)),
-        cargo_fijo:    cargoFijoUsd,
-        subtotal:      Number(subtotalUsd.toFixed(2))
+        ganancia: Number(gananciaUsd.toFixed(2)),
+        cargo_libra: Number(cargoEnvioUsd.toFixed(2)),
+        cargo_fijo: cargoFijoUsd,
+        subtotal: Number(subtotalUsd.toFixed(2)),
       },
 
       // ─ Desglose COP
       cop: {
-        sin_iva:    Math.round(copSinIva),
-        iva:        Math.round(copConIva - copSinIva),
-        iva_pct:    `${(config.iva_percent * 100).toFixed(0)}%`,
-        total:      precioFinalCop
+        sin_iva: Math.round(copSinIva),
+        iva: Math.round(copConIva - copSinIva),
+        iva_pct: `${(config.iva_percent * 100).toFixed(0)}%`,
+        total: precioFinalCop,
       },
 
       // ─ Resumen para el cliente
       resumen: {
         precio_final_cop: precioFinalCop,
-        abono_50pct:  this._roundUpToThousand(precioFinalCop * 0.5),
-        abono_30pct:  this._roundUpToThousand(precioFinalCop * 0.3)
-      }
+        abono_50pct: this._roundUpToThousand(precioFinalCop * 0.5),
+        abono_30pct: this._roundUpToThousand(precioFinalCop * 0.3),
+      },
     };
   }
 
@@ -178,55 +194,90 @@ class PriceCalculatorService {
    * @param {Array<object>} items - Array de parámetros por producto
    */
   async cotizarLote(items) {
-    if (!items?.length) throw new Error('El array de productos no puede estar vacío');
+    if (!items?.length)
+      throw new Error("El array de productos no puede estar vacío");
 
     const config = await this._loadConfig();
     const trmInfo = await trmService.getCurrentTrm();
     const trmOficial = trmInfo.valor;
     const trmCliente = trmOficial + config.trm_offset;
 
-    const resultados = await Promise.all(items.map(async (item, i) => {
-      const {
-        precioCompraUsd,
-        pesoLibras = 1.0,
-        categoria_id,
-        categoriaTexto = '',
-        margenBase,
-        cargoLibraUsd
-      } = item;
+    const resultados = await Promise.all(
+      items.map(async (item, i) => {
+        const {
+          precioCompraUsd,
+          pesoLibras = 1.0,
+          categoria_id,
+          categoriaTexto = "",
+          margenBase,
+          cargoLibraUsd,
+        } = item;
 
-      const cat = await this._resolveCategoria({
-        categoria_id, categoriaTexto, margenBase, cargoLibraUsd, config
-      });
+        const cat = await this._resolveCategoria({
+          categoria_id,
+          categoriaTexto,
+          margenBase,
+          cargoLibraUsd,
+          config,
+        });
 
-      const cargoEnvioUsd  = pesoLibras * cat.cargoLibra;
-      const cargoFijoUsd   = config.fixed_shipping_usd;
-      const gananciaUsd    = precioCompraUsd * cat.margen;
-      const subtotalUsd    = Number(precioCompraUsd || 0) + Number(cargoEnvioUsd || 0) + Number(cargoFijoUsd || 0) + Number(gananciaUsd || 0);
-      const copSinIva      = subtotalUsd * trmCliente;
-      const copConIva      = copSinIva * (1 + config.iva_percent);
-      const precioFinalCop = this._roundUpToThousand(copConIva);
+        const cargoEnvioUsd = pesoLibras * cat.cargoLibra;
+        const cargoFijoUsd = config.fixed_shipping_usd;
+        const gananciaUsd = precioCompraUsd * cat.margen;
+        const subtotalUsd =
+          Number(precioCompraUsd || 0) +
+          Number(cargoEnvioUsd || 0) +
+          Number(cargoFijoUsd || 0) +
+          Number(gananciaUsd || 0);
+        const copSinIva = subtotalUsd * trmCliente;
+        const copConIva = copSinIva * (1 + config.iva_percent);
+        const precioFinalCop = this._roundUpToThousand(copConIva);
 
-      return {
-        item: i + 1,
-        referencia: item.referencia ?? `Producto ${i + 1}`,
-        categoria: cat.nombre,
-        precio_final_cop: precioFinalCop,
-        subtotal_usd: Number(Number(subtotalUsd).toFixed(2)),
-        abono_50pct: this._roundUpToThousand(precioFinalCop * 0.5)
-      };
-    }));
+        return {
+          item: i + 1,
+          referencia: item.referencia ?? `Producto ${i + 1}`,
+          categoria: cat.nombre,
+          precio_final_cop: precioFinalCop,
+          subtotal_usd: Number(Number(subtotalUsd).toFixed(2)),
+          ganancia_usd: Number(gananciaUsd.toFixed(2)),
+          cargo_envio_usd: Number(cargoEnvioUsd.toFixed(2)),
+          abono_50pct: this._roundUpToThousand(precioFinalCop * 0.5),
+        };
+      }),
+    );
 
     const totalCop = resultados.reduce((sum, r) => sum + r.precio_final_cop, 0);
+    const totalProfitUsd = resultados.reduce(
+      (sum, r) => sum + (r.ganancia_usd || 0),
+      0,
+    );
+    const weightFeesUsd = resultados.reduce(
+      (sum, r) => sum + (r.cargo_envio_usd || 0),
+      0,
+    );
+    const totalFixedUsd = config.fixed_shipping_usd * resultados.length;
+    const avgMargin =
+      (totalProfitUsd /
+        resultados.reduce((sum, r) => sum + (r.subtotal_usd || 0), 1)) *
+      100;
 
     return {
-      trm: { oficial: trmOficial, cliente: trmCliente, fuente: trmInfo.fuente },
+      trm: {
+        oficial: trmOficial,
+        cliente: trmCliente,
+        fuente: trmInfo.fuente,
+        offset: config.trm_offset,
+      },
       productos: resultados,
       totales: {
         items: resultados.length,
         total_cop: totalCop,
-        abono_50pct: this._roundUpToThousand(totalCop * 0.5)
-      }
+        profit_usd: Number(totalProfitUsd.toFixed(2)),
+        weight_fees_usd: Number(weightFeesUsd.toFixed(2)),
+        total_fixed_usd: Number(totalFixedUsd.toFixed(2)),
+        avg_margin: `${avgMargin.toFixed(0)}%`,
+        abono_50pct: this._roundUpToThousand(totalCop * 0.5),
+      },
     };
   }
 }

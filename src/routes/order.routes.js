@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { listOrders, getOrderBalance, createOrder, updateOrderStatus, deleteOrder } from '../controllers/order.controller.js';
+import { listOrders, getOrderBalance, createOrder, createBatchOrder, updateOrderStatus, deleteOrder } from '../controllers/order.controller.js';
 import { authRequired, requireRoles } from '../middlewares/auth.middleware.js';
 
 /**
