@@ -1,4 +1,4 @@
-import { Categoria } from '../database/models/categoria.model.js';
+import { Categoria } from "../database/models/categoria.model.js";
 
 /**
  * @openapi
@@ -14,9 +14,11 @@ import { Categoria } from '../database/models/categoria.model.js';
  */
 export async function listCategories(req, res, next) {
   try {
-    const categorias = await Categoria.findAll({ order: [['nombre', 'ASC']] });
+    const categorias = await Categoria.findAll({ order: [["nombre", "ASC"]] });
     res.json(categorias);
-  } catch (err) { next(err); }
+  } catch (err) {
+    next(err);
+  }
 }
 
 /**
@@ -45,18 +47,21 @@ export async function listCategories(req, res, next) {
 export async function createCategory(req, res, next) {
   try {
     const { nombre, margen_base, cargo_libra_usd } = req.body;
-    if (!nombre) return res.status(400).json({ message: 'nombre es requerido' });
+    if (!nombre)
+      return res.status(400).json({ message: "nombre es requerido" });
 
     const existe = await Categoria.findOne({ where: { nombre } });
-    if (existe) return res.status(409).json({ message: 'Categoría ya existe' });
+    if (existe) return res.status(409).json({ message: "Categoría ya existe" });
 
     const cat = await Categoria.create({
       nombre,
-      margen_base: margen_base ?? 0.20,
-      cargo_libra_usd: cargo_libra_usd ?? 2.00
+      margen_base: margen_base ?? 0.2,
+      cargo_libra_usd: cargo_libra_usd ?? 2.0,
     });
     res.status(201).json(cat);
-  } catch (err) { next(err); }
+  } catch (err) {
+    next(err);
+  }
 }
 
 /**
@@ -71,10 +76,13 @@ export async function createCategory(req, res, next) {
 export async function updateCategory(req, res, next) {
   try {
     const cat = await Categoria.findByPk(req.params.id);
-    if (!cat) return res.status(404).json({ message: 'Categoría no encontrada' });
+    if (!cat)
+      return res.status(404).json({ message: "Categoría no encontrada" });
     await cat.update(req.body);
     res.json(cat);
-  } catch (err) { next(err); }
+  } catch (err) {
+    next(err);
+  }
 }
 
 /**
@@ -89,8 +97,11 @@ export async function updateCategory(req, res, next) {
 export async function deleteCategory(req, res, next) {
   try {
     const cat = await Categoria.findByPk(req.params.id);
-    if (!cat) return res.status(404).json({ message: 'Categoría no encontrada' });
+    if (!cat)
+      return res.status(404).json({ message: "Categoría no encontrada" });
     await cat.destroy();
-    res.json({ message: 'Categoría eliminada', id: req.params.id });
-  } catch (err) { next(err); }
+    res.json({ message: "Categoría eliminada", id: req.params.id });
+  } catch (err) {
+    next(err);
+  }
 }

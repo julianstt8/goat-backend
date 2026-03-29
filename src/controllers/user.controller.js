@@ -69,6 +69,7 @@ export async function listUsers(req, res, next) {
       attributes: { exclude: ['password_hash'] }
     });
 
+    console.log(`[DEBUG] listUsers: myRol=${myRol}, found=${users.length}`);
     res.json(users);
   } catch (err) { next(err); }
 }

@@ -11,7 +11,7 @@ import { Categoria } from '../database/models/categoria.model.js';
  *  Fórmula:
  *    subtotal_usd  = precio_usd + (peso × cargo_libra) + cargo_fijo + ganancia_usd
  *    precio_cop    = subtotal_usd × (TRM_oficial + offset)
- *    precio_final  = round_up_1000(precio_cop × (1 + iva))
+ *    precio_final  = round_up_1000(precio_cop)
  * ═══════════════════════════════════════════════════════════
  */
 class PriceCalculatorService {
@@ -20,7 +20,7 @@ class PriceCalculatorService {
   static DEFAULTS = {
     trm_offset:           200,   // COP de colchón sobre TRM oficial
     fixed_shipping_usd:    16,   // Cargo fijo de envío internacional
-    iva_percent:         0.19,   // IVA Colombia
+    iva_percent:            0,   // Sin IVA por defecto
     shipping_lb_sneakers:   2.0, // USD/lb Sneakers y Ropa
     shipping_lb_perfume:    3.5  // USD/lb Perfumes y líquidos
   };
@@ -202,7 +202,7 @@ class PriceCalculatorService {
       const cargoEnvioUsd  = pesoLibras * cat.cargoLibra;
       const cargoFijoUsd   = config.fixed_shipping_usd;
       const gananciaUsd    = precioCompraUsd * cat.margen;
-      const subtotalUsd    = precioCompraUsd + cargoEnvioUsd + cargoFijoUsd + gananciaUsd;
+      const subtotalUsd    = Number(precioCompraUsd || 0) + Number(cargoEnvioUsd || 0) + Number(cargoFijoUsd || 0) + Number(gananciaUsd || 0);
       const copSinIva      = subtotalUsd * trmCliente;
       const copConIva      = copSinIva * (1 + config.iva_percent);
       const precioFinalCop = this._roundUpToThousand(copConIva);
@@ -212,7 +212,7 @@ class PriceCalculatorService {
         referencia: item.referencia ?? `Producto ${i + 1}`,
         categoria: cat.nombre,
         precio_final_cop: precioFinalCop,
-        subtotal_usd: Number(subtotalUsd.toFixed(2)),
+        subtotal_usd: Number(Number(subtotalUsd).toFixed(2)),
         abono_50pct: this._roundUpToThousand(precioFinalCop * 0.5)
       };
     }));

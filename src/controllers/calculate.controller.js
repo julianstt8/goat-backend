@@ -120,7 +120,7 @@ export async function calculatePrice(req, res, next) {
       categoriaTexto, margenBase, cargoLibraUsd, trmManual
     } = req.body;
 
-    if (!precioCompraUsd || isNaN(Number(precioCompraUsd))) {
+    if (precioCompraUsd === undefined || isNaN(Number(precioCompraUsd))) {
       return res.status(400).json({ message: 'precioCompraUsd es requerido y debe ser un número' });
     }
 
@@ -178,8 +178,8 @@ export async function calculateBatch(req, res, next) {
       return res.status(400).json({ message: 'productos debe ser un array no vacío' });
     }
 
-    if (productos.length > 20) {
-      return res.status(400).json({ message: 'Máximo 20 productos por solicitud' });
+    if (productos.length > 100) {
+      return res.status(400).json({ message: 'Máximo 100 productos por solicitud' });
     }
 
     const result = await priceCalculator.cotizarLote(productos);

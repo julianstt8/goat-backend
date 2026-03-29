@@ -3,6 +3,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { sequelize } from './sequelize.js';
 import env from '../config/env.js';
+import { dropViews, syncViews } from './views.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -92,8 +93,18 @@ export async function syncDatabase() {
   logAssociations(models);
 
   if (env.nodeEnv === 'development') {
+    // 1) Eliminar views que dependen de columnas que podrían cambiar
+    await dropViews();
+
+    // 2) Sincronizar modelos con la DB
     await sequelize.sync({ alter: true });
     console.log('🛠️  Modelos sincronizados (alter) en desarrollo');
+
+    // 3) Recrear las views post‑sync
+    await syncViews();
+  } else {
+    // Fuera de desarrollo, simplemente recrear views para asegurar coherencia
+    await syncViews();
   }
 
   // Auto‑test (opcional)

@@ -10,6 +10,7 @@ import paymentRoutes from './payment.routes.js';
 import expenseRoutes from './expense.routes.js';
 import calculateRoutes from './calculate.routes.js';
 import configRoutes from './config.routes.js';
+import reportRoutes from './report.routes.js';
 
 const router = Router();
 
@@ -47,5 +48,8 @@ router.use('/calculate', calculateRoutes);
 
 // Configuraciones del sistema (solo super_admin)
 router.use('/config', configRoutes);
+
+// Reportes y vistas
+router.use('/reports', reportRoutes);
 
 export default router;

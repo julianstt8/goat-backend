@@ -16,7 +16,7 @@ export function authRequired(req, res, next) {
 
 export function requireRoles(...allowedRoles) {
   return (req, res, next) => {
-    const role = req.user?.role;
+    const role = req.user?.rol; // Cambiado de 'role' a 'rol' para coincidir con el payload del JWT
     if (!role) return res.status(401).json({ message: 'No autenticado' });
     if (!allowedRoles.includes(role)) return res.status(403).json({ message: 'No autorizado' });
     next();

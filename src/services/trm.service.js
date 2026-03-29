@@ -99,6 +99,31 @@ class TrmService {
     const result = await this.getCurrentTrm();
     return result.valor;
   }
+  
+  /**
+   * Retorna la TRM oficial para una fecha específica (YYYY-MM-DD).
+   * Solo disponible para el proveedor de Banca de la República.
+   */
+  async getHistoricalTrm(dateString) {
+    try {
+      const isoDate = new Date(dateString).toISOString().split('T')[0];
+      const res = await axios.get(
+        `https://www.datos.gov.co/resource/32sa-8pi3.json?vigenciadesde=${isoDate}`,
+        { timeout: 5000 }
+      );
+      const value = Number(res.data?.[0]?.valor);
+      if (value && !isNaN(value)) return value;
+      
+      const fallbackRes = await axios.get(
+        `https://www.datos.gov.co/resource/32sa-8pi3.json?$limit=1&$order=vigenciadesde DESC&$where=vigenciadesde <= '${isoDate}'`,
+        { timeout: 5000 }
+      );
+      return Number(fallbackRes.data?.[0]?.valor) || Number(process.env.DEFAULT_TRM ?? 4200);
+    } catch (err) {
+      console.error(`[TRM Historical] Error para ${dateString}: ${err.message}`);
+      return Number(process.env.DEFAULT_TRM ?? 4200);
+    }
+  }
 }
 
 export default new TrmService();

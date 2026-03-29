@@ -10,9 +10,12 @@ import { authRequired, requireRoles } from '../middlewares/auth.middleware.js';
  */
 
 const router = Router();
-router.use(authRequired);
 
+// Acceso público para filtros de catálogo
 router.get('/', listCategories);
+
+// Rutas protegidas
+router.use(authRequired);
 router.post('/', requireRoles('super_admin'), createCategory);
 router.patch('/:id', requireRoles('super_admin'), updateCategory);
 router.delete('/:id', requireRoles('super_admin'), deleteCategory);

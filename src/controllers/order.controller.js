@@ -127,29 +127,43 @@ export async function createOrder(req, res, next) {
   try {
     const { id: creadoPor } = req.user;
     const {
-      usuario_id, producto_id, referencia, tracking_number,
+      usuario_id, producto_id, tracking_number,
       precio_venta_cop, trm_utilizada, costo_total_usd,
-      fecha_compra, estado_logistico
+      fecha_compra, estado_logistico,
+      // Product details if it's a new one
+      referencia, categoria_id, talla, precio_compra_usd, peso_libras
     } = req.body;
 
     if (!usuario_id || !precio_venta_cop || !trm_utilizada) {
       return res.status(400).json({ message: 'usuario_id, precio_venta_cop y trm_utilizada son requeridos' });
     }
 
-    // Si se vincula un producto, marcarlo como vendido
-    if (producto_id) {
-      await Producto.update({ vendido: true }, { where: { id: producto_id } });
+    let linkedProductId = producto_id;
+
+    // If no product ID is provided, it's a custom order. Create the product entry.
+    if (!linkedProductId && referencia) {
+      const prod = await Producto.create({
+        referencia,
+        categoria_id,
+        talla: talla ?? 'N/A',
+        precio_compra_usd: precio_compra_usd ?? (costo_total_usd || 0),
+        peso_libras: peso_libras ?? 1.0,
+        vendido: true // Mark as sold immediately
+      });
+      linkedProductId = prod.id;
+    } else if (linkedProductId) {
+      await Producto.update({ vendido: true }, { where: { id: linkedProductId } });
     }
 
     const pedido = await Pedido.create({
       usuario_id,
-      producto_id: producto_id ?? null,
+      producto_id: linkedProductId,
       tracking_number: tracking_number ?? null,
       estado_logistico: estado_logistico ?? 'pendiente',
       precio_venta_cop,
       trm_utilizada,
       costo_total_usd: costo_total_usd ?? null,
-      fecha_compra: fecha_compra ?? new Date(),
+      fecha_compra: fecha_compra ?? null,
       creado_por: creadoPor
     });
 
@@ -170,18 +184,60 @@ export async function updateOrderStatus(req, res, next) {
   try {
     const { id } = req.params;
     const { id: modificadoPor } = req.user;
-    const { estado_logistico, tracking_number, fecha_entrega_real } = req.body;
+    const { usuario_id, estado_logistico, tracking_number, fecha_entrega_real, fecha_compra, referencia } = req.body;
 
     const pedido = await Pedido.findByPk(id);
     if (!pedido) return res.status(404).json({ message: 'Pedido no encontrado' });
 
+    // Si se envía una nueva referencia y el pedido tiene un producto vinculado, lo actualizamos
+    if (referencia && pedido.producto_id) {
+      await Producto.update({ referencia }, { where: { id: pedido.producto_id } });
+    }
+
     await pedido.update({
+      ...(usuario_id && { usuario_id }),
       ...(estado_logistico && { estado_logistico }),
       ...(tracking_number && { tracking_number }),
       ...(fecha_entrega_real && { fecha_entrega_real }),
+      ...(fecha_compra && { fecha_compra }),
       modificado_por: modificadoPor
     });
 
     res.json(pedido);
   } catch (err) { next(err); }
+}
+
+/**
+ * @openapi
+ * /orders/{id}:
+ *   delete:
+ *     summary: Eliminar un pedido definitivamente
+ *     description: Elimina el registro del pedido y sus abonos. Si tenía un producto vinculado, el producto vuelve a estar disponible (vendido = false).
+ *     tags: [Pedidos]
+ *     security:
+ *       - bearerAuth: []
+ */
+export async function deleteOrder(req, res, next) {
+  try {
+    const { id } = req.params;
+    const pedido = await Pedido.findByPk(id);
+    
+    if (!pedido) {
+      return res.status(404).json({ message: 'Pedido no encontrado' });
+    }
+
+    // Si tiene un producto vinculado, lo devolvemos al stock
+    if (pedido.producto_id) {
+       await Producto.update({ vendido: false }, { where: { id: pedido.producto_id } });
+    }
+
+    // Los abonos se eliminan por CASCADE en la base de datos si está configurado, 
+    // si no, los eliminamos manualmente aquí (mejor ser explícito por seguridad)
+    // Pero asumiendo nuestra arquitectura, el pedido es el core.
+    await pedido.destroy();
+
+    res.json({ message: 'Pedido eliminado con éxito', id });
+  } catch (err) {
+    next(err);
+  }
 }

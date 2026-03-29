@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { listOrders, getOrderBalance, createOrder, updateOrderStatus } from '../controllers/order.controller.js';
+import { listOrders, getOrderBalance, createOrder, updateOrderStatus, deleteOrder } from '../controllers/order.controller.js';
 import { authRequired, requireRoles } from '../middlewares/auth.middleware.js';
 
 /**
@@ -17,5 +17,6 @@ router.get('/', listOrders);
 router.post('/', requireRoles('super_admin', 'vendedor'), createOrder);
 router.get('/:id/balance', getOrderBalance);
 router.patch('/:id', requireRoles('super_admin', 'vendedor'), updateOrderStatus);
+router.delete('/:id', requireRoles('super_admin', 'vendedor'), deleteOrder);
 
 export default router;

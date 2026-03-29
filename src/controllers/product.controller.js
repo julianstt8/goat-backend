@@ -1,6 +1,8 @@
 import { Producto } from '../database/models/producto.model.js';
 import { Categoria } from '../database/models/categoria.model.js';
 import { Op } from 'sequelize';
+import priceCalculatorService from '../services/price-calculator.service.js';
+import trmService from '../services/trm.service.js';
 
 /**
  * @openapi
@@ -87,6 +89,7 @@ export async function getProductById(req, res, next) {
  *               categoria_id: { type: integer, example: 1 }
  *               descripcion: { type: string }
  *               precio_compra_usd: { type: number, example: 120.00 }
+ *               precio_venta_cop: { type: number, example: 450000 }
  *               peso_libras: { type: number, example: 1.5 }
  *               talla: { type: string, example: "US10" }
  *               en_stock: { type: boolean, default: false }
@@ -101,10 +104,21 @@ export async function createProduct(req, res, next) {
       return res.status(400).json({ message: 'referencia y precio_compra_usd son requeridos' });
     }
 
+    let precio_venta_cop = null;
+    if (en_stock) {
+      const calc = await priceCalculatorService.cotizar({
+        precioCompraUsd: Number(precio_compra_usd),
+        pesoLibras: Number(peso_libras || 1.0),
+        categoria_id: categoria_id ? Number(categoria_id) : null
+      });
+      precio_venta_cop = calc.resumen.precio_final_cop;
+    }
+
     const product = await Producto.create({
       referencia, categoria_id: categoria_id ?? null, descripcion: descripcion ?? null,
       precio_compra_usd, peso_libras: peso_libras ?? 1.0,
-      talla: talla ?? null, en_stock: en_stock ?? false
+      talla: talla ?? null, en_stock: en_stock ?? false,
+      precio_venta_cop
     });
 
     res.status(201).json(product);
@@ -124,7 +138,25 @@ export async function updateProduct(req, res, next) {
   try {
     const product = await Producto.findByPk(req.params.id);
     if (!product) return res.status(404).json({ message: 'Producto no encontrado' });
-    await product.update(req.body);
+    
+    // Si cambia precio, peso o categoría y está en stock, recalculamos
+    const { precio_compra_usd, peso_libras, categoria_id, en_stock } = req.body;
+    let dataToUpdate = { ...req.body };
+
+    if (en_stock === true || (product.en_stock && (precio_compra_usd !== undefined || peso_libras !== undefined || categoria_id !== undefined))) {
+       const calc = await priceCalculatorService.cotizar({
+         precioCompraUsd: Number(precio_compra_usd ?? product.precio_compra_usd),
+         pesoLibras: Number(peso_libras ?? product.peso_libras),
+         categoria_id: categoria_id ? Number(categoria_id) : product.categoria_id
+       });
+       
+       // Si el usuario no envió un precio manual, aplicamos el recalculado
+       if (req.body.precio_venta_cop === undefined) {
+          dataToUpdate.precio_venta_cop = calc.resumen.precio_final_cop;
+       }
+    }
+
+    await product.update(dataToUpdate);
     res.json(product);
   } catch (err) { next(err); }
 }
@@ -138,6 +170,60 @@ export async function updateProduct(req, res, next) {
  *     security:
  *       - bearerAuth: []
  */
+/**
+ * @openapi
+ * /products/recalculate:
+ *   post:
+ *     summary: Recalcular precios de todo el stock disponible
+ *     tags: [Productos]
+ *     security:
+ *       - bearerAuth: []
+ */
+export async function recalculateStockPrices(req, res, next) {
+  try {
+    const { mode, trmManual } = req.body; // mode: 'historico', 'actual', 'manual'
+    const products = await Producto.findAll({
+      where: { en_stock: true, vendido: false }
+    });
+    
+    let updatedCount = 0;
+    const currentTrm = mode === 'actual' ? (await trmService.getTrmValue()) : null;
+
+    for (const prod of products) {
+       let trmToUse = null;
+
+       if (mode === 'manual') {
+         trmToUse = Number(trmManual);
+       } else if (mode === 'actual') {
+         trmToUse = currentTrm;
+       } else {
+         // mode === 'historico' (default)
+         trmToUse = prod.trm_compra ? Number(prod.trm_compra) : await trmService.getHistoricalTrm(prod.fecha_creacion);
+       }
+
+       const calc = await priceCalculatorService.cotizar({
+         precioCompraUsd: Number(prod.precio_compra_usd),
+         pesoLibras: Number(prod.peso_libras),
+         categoria_id: prod.categoria_id,
+         trmManual: trmToUse
+       });
+
+       await prod.update({ 
+         precio_venta_cop: calc.resumen.precio_final_cop,
+         trm_compra: trmToUse // Guardamos la TRM usada para que quede anclado
+       });
+
+       updatedCount++;
+    }
+
+    res.json({ 
+       message: 'Sincronización de precios finalizada', 
+       updatedCount,
+       modo: mode || 'historico'
+    });
+  } catch (err) { next(err); }
+}
+
 export async function deleteProduct(req, res, next) {
   try {
     const product = await Producto.findByPk(req.params.id);

@@ -15,10 +15,6 @@ export const Producto = sequelize.define('Producto', {
     type: DataTypes.STRING(150),
     allowNull: false
   },
-  descripcion: {
-    type: DataTypes.TEXT,
-    allowNull: true
-  },
   precio_compra_usd: {
     type: DataTypes.DECIMAL(12, 2),
     allowNull: false
@@ -28,7 +24,7 @@ export const Producto = sequelize.define('Producto', {
     defaultValue: 1.0
   },
   talla: {
-    type: DataTypes.STRING(20),
+    type: DataTypes.STRING(150),
     allowNull: true
   },
   en_stock: {
@@ -38,6 +34,22 @@ export const Producto = sequelize.define('Producto', {
   vendido: {
     type: DataTypes.BOOLEAN,
     defaultValue: false
+  },
+  es_serializado: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true
+  },
+  stock_disponible: {
+    type: DataTypes.INTEGER,
+    defaultValue: 1
+  },
+  precio_venta_cop: {
+    type: DataTypes.DECIMAL(12, 2),
+    allowNull: true
+  },
+  trm_compra: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true
   },
   fecha_creacion: {
     type: DataTypes.DATE,
