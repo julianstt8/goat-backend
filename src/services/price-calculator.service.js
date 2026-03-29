@@ -18,7 +18,7 @@ class PriceCalculatorService {
   /** Valores seguros si la BD aún no tiene configuraciones */
   static DEFAULTS = {
     trm_offset: 200, // COP de colchón sobre TRM oficial
-    fixed_shipping_usd: 16, // Cargo fijo de envío internacional
+    fixed_shipping_usd: 16, // Cargo fijo de envío internacional @GOAT
     iva_percent: 0, // Sin IVA por defecto
     shipping_lb_sneakers: 2.0, // USD/lb Sneakers y Ropa
     shipping_lb_perfume: 3.5, // USD/lb Perfumes y líquidos
@@ -130,17 +130,22 @@ class PriceCalculatorService {
       config,
     });
 
-    // 4. Cálculos en USD ─────────────────────────────────────────────
-    const cargoEnvioUsd = pesoLibras * cat.cargoLibra;
-    const cargoFijoUsd = config.fixed_shipping_usd;
-    const gananciaUsd = precioCompraUsd * cat.margen;
-    const subtotalUsd =
-      precioCompraUsd + cargoEnvioUsd + cargoFijoUsd + gananciaUsd;
-
-    // 5. Conversión a COP ────────────────────────────────────────────
-    const copSinIva = subtotalUsd * trmCliente;
-    const copConIva = copSinIva * (1 + config.iva_percent);
-    const precioFinalCop = this._roundUpToThousand(copConIva);
+    // 4. Cálculos en COP ─────────────────────────────────────────────
+    // Costo base en USD (Compra + Envío Fijo + Peso)
+    const cargoFijoUsd = Number(config.fixed_shipping_usd || 16); 
+    const cargoPesoUsd = pesoLibras * Number(cat.cargoLibra || 2.5); 
+    const costoBaseUsd = precioCompraUsd + cargoFijoUsd + cargoPesoUsd;
+    
+    // Convertir costo base a COP con la TRM @GOAT (Oficial + Offset)
+    trmCliente = trmOficial + (Number(config.trm_offset) || 200);
+    const costoBaseCop = costoBaseUsd * trmCliente;
+    
+    // Margen de ganancia dinámico SEGÚN CATEGORÍA (Markup)
+    const margenGanancia = Number(cat.margen || 0.15);
+    const precioFinalBruto = costoBaseCop * (1 + margenGanancia);
+    
+    // Aplicar IVA (si existiera config) y redondear
+    const precioFinalCop = this._roundUpToThousand(precioFinalBruto * (1 + (Number(config.iva_percent) || 0)));
 
     // 6. Resultado detallado ─────────────────────────────────────────
     return {
