@@ -67,6 +67,9 @@ export const Pedido = sequelize.define('Pedido', {
 }, {
   tableName: 'pedidos',
   timestamps: false,
+  defaultScope: {
+    order: [['fecha_compra', 'DESC']]
+  },
   indexes: [
     { name: 'idx_pedidos_tracking', fields: ['tracking_number'] }
   ]

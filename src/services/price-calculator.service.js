@@ -119,7 +119,6 @@ class PriceCalculatorService {
       trmInfo = await trmService.getCurrentTrm();
     }
     const trmOficial = trmInfo.valor;
-    const trmCliente = trmOficial + config.trm_offset;
 
     // 3. Parámetros de categoría
     const cat = await this._resolveCategoria({
@@ -130,22 +129,20 @@ class PriceCalculatorService {
       config,
     });
 
-    // 4. Cálculos en COP ─────────────────────────────────────────────
-    // Costo base en USD (Compra + Envío Fijo + Peso)
-    const cargoFijoUsd = Number(config.fixed_shipping_usd || 16); 
-    const cargoPesoUsd = pesoLibras * Number(cat.cargoLibra || 2.5); 
-    const costoBaseUsd = precioCompraUsd + cargoFijoUsd + cargoPesoUsd;
+    // 4. Cálculos en USD ─────────────────────────────────────────────
+    const cargoFijoUsd = Number(config.fixed_shipping_usd || 16);
+    const cargoEnvioUsd = pesoLibras * Number(cat.cargoLibra || 2.5);
+    const gananciaUsd = precioCompraUsd * Number(cat.margen || 0.15);
+    const subtotalUsd = precioCompraUsd + cargoFijoUsd + cargoEnvioUsd + gananciaUsd;
+
+    // 5. Cálculos en COP ─────────────────────────────────────────────
+    // Convertir a COP con la TRM @GOAT (Oficial + Offset)
+    const trmCliente = trmOficial + (Number(config.trm_offset) || 200);
+    const copSinIva = subtotalUsd * trmCliente;
+    const copConIva = copSinIva * (1 + (Number(config.iva_percent) || 0));
     
-    // Convertir costo base a COP con la TRM @GOAT (Oficial + Offset)
-    trmCliente = trmOficial + (Number(config.trm_offset) || 200);
-    const costoBaseCop = costoBaseUsd * trmCliente;
-    
-    // Margen de ganancia dinámico SEGÚN CATEGORÍA (Markup)
-    const margenGanancia = Number(cat.margen || 0.15);
-    const precioFinalBruto = costoBaseCop * (1 + margenGanancia);
-    
-    // Aplicar IVA (si existiera config) y redondear
-    const precioFinalCop = this._roundUpToThousand(precioFinalBruto * (1 + (Number(config.iva_percent) || 0)));
+    // Aplicar redondeo al mil superior
+    const precioFinalCop = this._roundUpToThousand(copConIva);
 
     // 6. Resultado detallado ─────────────────────────────────────────
     return {
