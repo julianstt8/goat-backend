@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { listOrders, getOrderBalance, createOrder, createBatchOrder, updateOrderStatus, deleteOrder } from '../controllers/order.controller.js';
-import { authRequired, requireRoles } from '../middlewares/auth.middleware.js';
+import { authRequired, requireRoles, optionalAuth } from '../middlewares/auth.middleware.js';
 
 /**
  * @openapi
@@ -11,8 +11,10 @@ import { authRequired, requireRoles } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
-router.use(authRequired); // Todas las rutas requieren token
+// Ruta de creación masiva permitida para invitados y usuarios logueados
+router.post('/batch', optionalAuth, createBatchOrder);
 
+router.use(authRequired); // A partir de aquí requieren token
 router.get('/', listOrders);
 router.post('/', requireRoles('super_admin', 'vendedor'), createOrder);
 router.get('/:id/balance', getOrderBalance);

@@ -18,13 +18,17 @@ export async function syncViews() {
       COALESCE(SUM(pg.monto_cop), 0) AS total_pagado,
       (p.precio_venta_cop - COALESCE(SUM(pg.monto_cop), 0)) AS saldo_restante,
       p.estado_logistico,
-      p.fecha_compra
+      p.fecha_compra,
+      p.creado_por,
+      cur.rol AS creador_rol
     FROM pedidos p
     JOIN usuarios u ON p.usuario_id = u.id
     LEFT JOIN productos pr ON p.producto_id = pr.id
     LEFT JOIN pagos pg ON p.id = pg.pedido_id
-    GROUP BY p.id, u.nombre_completo, u.telefono, pr.referencia
-    HAVING (p.precio_venta_cop - COALESCE(SUM(pg.monto_cop), 0)) > 0
+    LEFT JOIN usuarios cur ON p.creado_por = cur.id
+    WHERE p.activo = true
+    GROUP BY p.id, u.nombre_completo, u.telefono, pr.referencia, cur.rol
+    HAVING (p.precio_venta_cop - COALESCE(SUM(pg.monto_cop), 0)) > 100
     ORDER BY p.fecha_compra DESC;
   `);
 

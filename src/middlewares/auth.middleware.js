@@ -22,3 +22,14 @@ export function requireRoles(...allowedRoles) {
     next();
   };
 }
+
+export function optionalAuth(req, res, next) {
+   try {
+     const header = req.headers.authorization || '';
+     const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+     if (token) {
+        req.user = verifyJwt(token);
+     }
+   } catch (e) {} // Silencioso si falla
+   next();
+}

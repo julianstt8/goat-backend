@@ -9,7 +9,13 @@ export const sequelize = new Sequelize(
     host: env.db.host,
     port: env.db.port,
     dialect: 'postgres',
-    logging: env.db.logging ? console.log : false
+    logging: env.db.logging ? console.log : false,
+    timezone: '-05:00', // Bogotá, Colombia
+    dialectOptions: {
+      useUTC: false, // Usar hora local del servidor
+      dateStrings: true,
+      typeCast: true
+    }
   }
 );
 

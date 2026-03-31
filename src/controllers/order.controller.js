@@ -2,6 +2,7 @@ import { Pedido } from '../database/models/pedido.model.js';
 import { Pago } from '../database/models/pago.model.js';
 import { Usuario } from '../database/models/usuario.model.js';
 import { Producto } from '../database/models/producto.model.js';
+import { DireccionUsuario } from '../database/models/direccion-usuario.model.js';
 import { TIPO_ROL } from '../database/models/usuario.model.js';
 import { sequelize } from '../database/sequelize.js';
 
@@ -23,12 +24,13 @@ export async function listOrders(req, res, next) {
     const { id: userId, rol } = req.user;
     const isAdmin = [TIPO_ROL.SUPER_ADMIN, TIPO_ROL.VENDEDOR].includes(rol);
 
-    const where = isAdmin ? {} : { usuario_id: userId };
+    const where = isAdmin ? { activo: true } : { usuario_id: userId, activo: true };
 
     const pedidos = await Pedido.findAll({
       where,
       include: [
         { model: Usuario, as: 'cliente', attributes: ['id', 'nombre_completo', 'email'] },
+        { model: Usuario, as: 'vendedor', attributes: ['id', 'nombre_completo', 'rol'] },
         { model: Producto, as: 'producto', attributes: ['id', 'referencia', 'talla'] },
         { model: Pago, as: 'pagos', attributes: ['id', 'monto_cop', 'tipo_abono', 'fecha_pago'] }
       ],
@@ -126,16 +128,31 @@ export async function getOrderBalance(req, res, next) {
 export async function createOrder(req, res, next) {
   try {
     const { id: creadoPor } = req.user;
-    const {
-      usuario_id, producto_id, tracking_number,
-      precio_venta_cop, trm_utilizada, costo_total_usd,
-      fecha_compra, estado_logistico,
-      // Product details if it's a new one
-      referencia, categoria_id, talla, precio_compra_usd, peso_libras
+    let { 
+       usuario_id, producto_id, tracking_number,
+       precio_venta_cop, trm_utilizada, costo_total_usd,
+       fecha_compra, estado_logistico,
+       referencia, categoria_id, talla, precio_compra_usd, peso_libras,
+       nombre, email, telefono 
     } = req.body;
 
+    if (!usuario_id && email && nombre) {
+       // Buscar o crear usuario
+       let u = await Usuario.findOne({ where: { email: email.toLowerCase() } });
+       if (!u) {
+          u = await Usuario.create({
+             nombre_completo: nombre,
+             email: email.toLowerCase(),
+             telefono: telefono || null,
+             rol: TIPO_ROL.CLIENTE_STANDARD,
+             activo: true
+          });
+       }
+       usuario_id = u.id;
+    }
+
     if (!usuario_id || !precio_venta_cop || !trm_utilizada) {
-      return res.status(400).json({ message: 'usuario_id, precio_venta_cop y trm_utilizada son requeridos' });
+      return res.status(400).json({ message: 'usuario_id (o nombre/email), precio_venta_cop y trm_utilizada son requeridos' });
     }
 
     let linkedProductId = producto_id;
@@ -155,6 +172,8 @@ export async function createOrder(req, res, next) {
       await Producto.update({ vendido: true }, { where: { id: linkedProductId } });
     }
 
+    const colombiaDate = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+
     const pedido = await Pedido.create({
       usuario_id,
       producto_id: linkedProductId,
@@ -163,7 +182,7 @@ export async function createOrder(req, res, next) {
       precio_venta_cop,
       trm_utilizada,
       costo_total_usd: costo_total_usd ?? null,
-      fecha_compra: fecha_compra ?? null,
+      fecha_compra: fecha_compra ?? colombiaDate,
       creado_por: creadoPor
     });
 
@@ -220,8 +239,9 @@ export async function updateOrderStatus(req, res, next) {
 export async function deleteOrder(req, res, next) {
   try {
     const { id } = req.params;
-    const pedido = await Pedido.findByPk(id);
+    const { id: modificadoPor } = req.user;
     
+    const pedido = await Pedido.findByPk(id);
     if (!pedido) {
       return res.status(404).json({ message: 'Pedido no encontrado' });
     }
@@ -231,12 +251,13 @@ export async function deleteOrder(req, res, next) {
        await Producto.update({ vendido: false }, { where: { id: pedido.producto_id } });
     }
 
-    // Los abonos se eliminan por CASCADE en la base de datos si está configurado, 
-    // si no, los eliminamos manualmente aquí (mejor ser explícito por seguridad)
-    // Pero asumiendo nuestra arquitectura, el pedido es el core.
-    await pedido.destroy();
+    // Marcamos el pedido como inactivo (Borrado Lógico)
+    await pedido.update({ 
+       activo: false,
+       modificado_por: modificadoPor
+    });
 
-    res.json({ message: 'Pedido eliminado con éxito', id });
+    res.json({ message: 'Pedido inactivado con éxito', id });
   } catch (err) {
     next(err);
   }
@@ -254,8 +275,9 @@ export async function deleteOrder(req, res, next) {
 export async function createBatchOrder(req, res, next) {
    const t = await sequelize.transaction();
    try {
-      const { id: creadoPor } = req.user;
-      const { items, cliente, trm_used } = req.body;
+      const creadoPor = req.user?.id || null;
+      const { items, cliente, trm_used, ciudad_envio, direccion_envio } = req.body;
+      const colombiaDate = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
 
       if (!items || !cliente || !trm_used) {
          return res.status(400).json({ message: 'items, cliente y trm_used son requeridos' });
@@ -263,14 +285,15 @@ export async function createBatchOrder(req, res, next) {
 
       // 1. Resolver Cliente (Usuario)
       let usuarioId = cliente.id;
+      let userFound = null;
+
       if (!usuarioId) {
-         // Buscar por email si no tiene ID
-         const u = await Usuario.findOne({ where: { email: cliente.email.toLowerCase() }, transaction: t });
-         if (u) {
-            usuarioId = u.id;
+         userFound = await Usuario.findOne({ where: { email: cliente.email.toLowerCase() }, transaction: t });
+         if (userFound) {
+            usuarioId = userFound.id;
          } else {
             // Crear nuevo cliente
-            const nuevoUser = await Usuario.create({
+            userFound = await Usuario.create({
                nombre_completo: cliente.nombre,
                email: cliente.email.toLowerCase(),
                telefono: cliente.telefono || null,
@@ -278,7 +301,22 @@ export async function createBatchOrder(req, res, next) {
                nivel: 'bronze',
                activo: true
             }, { transaction: t });
-            usuarioId = nuevoUser.id;
+            usuarioId = userFound.id;
+         }
+      } else {
+         userFound = await Usuario.findByPk(usuarioId, { transaction: t });
+      }
+
+      // 1.1 Guardar Dirección en Perfil si se proporcionó y no tiene
+      if (ciudad_envio && direccion_envio && userFound) {
+         const hasAddress = await DireccionUsuario.findOne({ where: { usuario_id: usuarioId }, transaction: t });
+         if (!hasAddress) {
+            await DireccionUsuario.create({
+               usuario_id: usuarioId,
+               ciudad: ciudad_envio,
+               direccion_completa: direccion_envio,
+               es_principal: true
+            }, { transaction: t });
          }
       }
 
@@ -286,35 +324,46 @@ export async function createBatchOrder(req, res, next) {
 
       // 2. Procesar cada ítem
       for (const item of items) {
-         // Crear Producto (siempre nuevo ítem para cotización externa)
-         const prod = await Producto.create({
-            referencia: item.referencia,
-            categoria_id: item.categoria_id || null, // Se asume null si no se envió
-            talla: 'N/A', // O extraer si se envía en el objeto ítem
-            precio_compra_usd: item.precioCompraUsd,
-            peso_libras: item.pesoLibras || 1.0,
-            vendido: true
-         }, { transaction: t });
+         let linkedProductId = item.id; // Si viene de Stock
+         let finalPrice = item.precio_calculado || item.precio_venta_cop;
 
-         // Calcular precio venta basado en el margen (repetir lógica del frontend por integridad)
-         // O mejor, recibir el precio calculado desde el frontend
-         const logistica_fija_usd = 20; // Default
-         const baseCompraCop = item.precioCompraUsd * trm_used;
-         const logisticaCop = logistica_fija_usd * trm_used;
-         const pesoCop = (Number(item.pesoLibras) * 2.5) * trm_used;
-         const totalCostCop = baseCompraCop + logisticaCop + pesoCop;
-         const precioVentaFinal = Math.ceil((totalCostCop / 0.85) / 1000) * 1000;
+         if (!linkedProductId) {
+            // Crear Producto (si es una cotización externa)
+            const prod = await Producto.create({
+               referencia: item.referencia,
+               categoria_id: item.categoria_id || null,
+               talla: item.talla || 'N/A',
+               precio_compra_usd: item.precioCompraUsd,
+               peso_libras: item.pesoLibras || 1.0,
+               vendido: true
+            }, { transaction: t });
+            linkedProductId = prod.id;
+
+            // Calcular precio si no venía pre-calculado
+            if (!finalPrice) {
+               const trmUsed = Number(trm_used);
+               const logisticaCop = 20 * trmUsed;
+               const pesoCop = (Number(item.pesoLibras || 1) * 2.5) * trmUsed;
+               const costCop = (Number(item.precioCompraUsd) * trmUsed) + logisticaCop + pesoCop;
+               finalPrice = Math.ceil((costCop / 0.85) / 1000) * 1000;
+            }
+         } else {
+            // Si es de stock, marcar como vendido
+            await Producto.update({ vendido: true }, { where: { id: linkedProductId }, transaction: t });
+         }
 
          // Crear Pedido
          const pedido = await Pedido.create({
             usuario_id: usuarioId,
-            producto_id: prod.id,
+            producto_id: linkedProductId,
             estado_logistico: 'pendiente',
-            precio_venta_cop: precioVentaFinal,
+            precio_venta_cop: finalPrice,
             trm_utilizada: trm_used,
-            costo_total_usd: item.precioCompraUsd,
+            costo_total_usd: item.precio_compra_usd || item.precioCompraUsd,
             creado_por: creadoPor,
-            fecha_compra: new Date()
+            fecha_compra: colombiaDate,
+            ciudad_envio,
+            direccion_envio
          }, { transaction: t });
 
          createdOrders.push(pedido);

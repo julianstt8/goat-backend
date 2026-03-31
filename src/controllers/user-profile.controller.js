@@ -12,14 +12,25 @@ export async function getProfile(req, res, next) {
   try {
     const userId = req.user.id;
     const user = await Usuario.findByPk(userId, {
-      attributes: { exclude: ['password_hash'] }
+      attributes: { exclude: ['password_hash'] },
+      include: [{
+        model: DireccionUsuario,
+        as: 'direcciones',
+        required: false
+      }]
     });
     
     // Estadísticas rápidas
     const orderCount = await Pedido.count({ where: { usuario_id: userId } });
     
+    // Buscar la principal o la última registrada
+    const allAddrs = user.direcciones || [];
+    const primaryAddr = allAddrs.find(a => a.es_principal) || allAddrs[allAddrs.length - 1];
+    
     res.json({
        ...user.get({ plain: true }),
+       ciudad: primaryAddr?.ciudad || null,
+       direccion: primaryAddr?.direccion_completa || null,
        stats: {
           total_pedidos: orderCount
        }

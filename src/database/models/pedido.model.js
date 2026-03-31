@@ -63,6 +63,19 @@ export const Pedido = sequelize.define('Pedido', {
     type: DataTypes.UUID,
     allowNull: true,
     references: { model: 'usuarios', key: 'id' }
+  },
+  activo: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+    allowNull: false
+  },
+  direccion_envio: {
+     type: DataTypes.TEXT,
+     allowNull: true
+  },
+  ciudad_envio: {
+     type: DataTypes.STRING(100),
+     allowNull: true
   }
 }, {
   tableName: 'pedidos',

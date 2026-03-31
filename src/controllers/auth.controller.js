@@ -1,4 +1,5 @@
 import { Usuario, TIPO_ROL } from '../database/models/usuario.model.js';
+import { sequelize } from '../database/sequelize.js';
 import { verifyPassword, hashPassword } from '../utils/crypto.util.js';
 import { signJwt } from '../utils/jwt.util.js';
 
@@ -162,9 +163,26 @@ export async function register(req, res, next) {
 export async function me(req, res, next) {
   try {
     const usuario = await Usuario.findByPk(req.user.id, {
-      attributes: { exclude: ['password_hash'] }
+      attributes: { exclude: ['password_hash'] },
+      include: [{
+        model: sequelize.models.DireccionUsuario,
+        as: 'direcciones',
+        required: false
+      }]
     });
+    
     if (!usuario) return res.status(404).json({ message: 'Usuario no encontrado' });
-    res.json(usuario);
+
+    // Buscar la principal o la última registrada
+    const allAddrs = usuario.direcciones || [];
+    const primaryAddr = allAddrs.find(a => a.es_principal) || allAddrs[allAddrs.length - 1];
+    
+    const data = usuario.get({ plain: true });
+    
+    res.json({
+       ...data,
+       ciudad: primaryAddr?.ciudad || null,
+       direccion: primaryAddr?.direccion_completa || null
+    });
   } catch (err) { next(err); }
 }

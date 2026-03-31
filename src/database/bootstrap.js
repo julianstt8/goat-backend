@@ -97,8 +97,13 @@ export async function syncDatabase() {
     await dropViews();
 
     // 2) Sincronizar modelos con la DB
-    await sequelize.sync({ alter: true });
-    console.log('🛠️  Modelos sincronizados (alter) en desarrollo');
+    try {
+      await sequelize.sync({ alter: true });
+      console.log('🛠️  Modelos sincronizados (alter) en desarrollo');
+    } catch (e) {
+      console.warn('⚠️  Sincronización alter falló (posible conflicto de constraints), continuando arranque seguro:', e.message);
+      await sequelize.sync();
+    }
 
     // 3) Recrear las views post‑sync
     await syncViews();

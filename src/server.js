@@ -1,3 +1,4 @@
+process.env.TZ = 'America/Bogota';
 import env from './config/env.js';
 import app from './app.js';
 import { syncDatabase } from './database/bootstrap.js';
