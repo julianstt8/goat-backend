@@ -64,6 +64,10 @@ export const Usuario = sequelize.define('Usuario', {
     type: DataTypes.STRING(10),
     allowNull: true
   },
+  genero: {
+    type: DataTypes.ENUM('hombre', 'mujer', 'unisex', 'junior'),
+    defaultValue: 'unisex'
+  },
   talla_ropa: {
     type: DataTypes.STRING(10),
     allowNull: true

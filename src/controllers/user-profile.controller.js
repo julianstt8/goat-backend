@@ -32,14 +32,22 @@ export async function getProfile(req, res, next) {
  */
 export async function updateProfile(req, res, next) {
   try {
-    const { nombre_completo, telefono, talla_calzado_us, talla_ropa } = req.body;
+    const { nombre_completo, telefono, talla_calzado_us, talla_ropa, genero } = req.body;
     const user = await Usuario.findByPk(req.user.id);
     
+    let finalGenero = genero ?? user.genero;
+    
+    // Si la talla de calzado incluye el separador '/', se asume Unisex por defecto (M/W)
+    if (talla_calzado_us?.includes('/')) {
+       finalGenero = 'unisex';
+    }
+
     await user.update({
        nombre_completo: nombre_completo ?? user.nombre_completo,
        telefono: telefono ?? user.telefono,
        talla_calzado_us: talla_calzado_us ?? user.talla_calzado_us,
-       talla_ropa: talla_ropa ?? user.talla_ropa
+       talla_ropa: talla_ropa ?? user.talla_ropa,
+       genero: finalGenero
     });
     
     res.json(user);

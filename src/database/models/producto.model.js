@@ -23,6 +23,10 @@ export const Producto = sequelize.define('Producto', {
     type: DataTypes.DECIMAL(10, 2),
     defaultValue: 2.0
   },
+  genero: {
+    type: DataTypes.ENUM('hombre', 'mujer', 'unisex', 'junior'),
+    defaultValue: 'unisex'
+  },
   talla: {
     type: DataTypes.STRING(150),
     allowNull: true

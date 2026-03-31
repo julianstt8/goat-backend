@@ -99,7 +99,7 @@ export async function getProductById(req, res, next) {
  */
 export async function createProduct(req, res, next) {
   try {
-    const { referencia, categoria_id, descripcion, precio_compra_usd, peso_libras, talla, en_stock } = req.body;
+    const { referencia, categoria_id, descripcion, precio_compra_usd, peso_libras, talla, en_stock, genero } = req.body;
     if (!referencia || precio_compra_usd === undefined) {
       return res.status(400).json({ message: 'referencia y precio_compra_usd son requeridos' });
     }
@@ -115,9 +115,14 @@ export async function createProduct(req, res, next) {
     }
 
     const product = await Producto.create({
-      referencia, categoria_id: categoria_id ?? null, descripcion: descripcion ?? null,
-      precio_compra_usd, peso_libras: peso_libras ?? 1.0,
-      talla: talla ?? null, en_stock: en_stock ?? false,
+      referencia, 
+      categoria_id: categoria_id ?? null, 
+      descripcion: descripcion ?? null,
+      precio_compra_usd, 
+      peso_libras: peso_libras ?? 1.0,
+      talla: talla ?? null, 
+      en_stock: en_stock ?? false,
+      genero: genero || 'unisex',
       precio_venta_cop
     });
 
@@ -231,7 +236,8 @@ export async function deleteProduct(req, res, next) {
     if (product.vendido) {
       return res.status(409).json({ message: 'No se puede eliminar un producto ya vendido' });
     }
-    await product.destroy();
-    res.json({ message: 'Producto eliminado', id: req.params.id });
+    // Borrado lógico: inactivar para el catálogo
+    await product.update({ en_stock: false });
+    res.json({ message: 'Producto inactivado del catálogo con éxito', id: req.params.id });
   } catch (err) { next(err); }
 }
