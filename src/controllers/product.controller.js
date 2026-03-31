@@ -229,6 +229,37 @@ export async function recalculateStockPrices(req, res, next) {
   } catch (err) { next(err); }
 }
 
+export async function createBatchProduct(req, res, next) {
+   try {
+      const { items } = req.body; // Array de productos
+      if (!items || !Array.isArray(items)) {
+         return res.status(400).json({ message: 'Se requiere un array de items' });
+      }
+
+      const created = [];
+      for (const itemData of items) {
+         let precio_venta_cop = itemData.precio_venta_cop || null;
+         
+         if (itemData.en_stock && !precio_venta_cop) {
+            const calc = await priceCalculatorService.cotizar({
+               precioCompraUsd: Number(itemData.precio_compra_usd),
+               pesoLibras: Number(itemData.peso_libras || 1.0),
+               categoria_id: itemData.categoria_id ? Number(itemData.categoria_id) : null
+            });
+            precio_venta_cop = calc.resumen.precio_final_cop;
+         }
+
+         const p = await Producto.create({
+            ...itemData,
+            precio_venta_cop
+         });
+         created.push(p);
+      }
+
+      res.status(201).json({ message: `¡${created.length} productos creados!`, products: created });
+   } catch (err) { next(err); }
+}
+
 export async function deleteProduct(req, res, next) {
   try {
     const product = await Producto.findByPk(req.params.id);
