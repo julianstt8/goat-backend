@@ -20,8 +20,48 @@ export async function getProfile(req, res, next) {
       }]
     });
     
-    // Estadísticas rápidas
-    const orderCount = await Pedido.count({ where: { usuario_id: userId } });
+    // Estadísticas e Inversión Total
+    const userOrders = await Pedido.findAll({ 
+       where: { usuario_id: userId, activo: true },
+       attributes: ['precio_venta_cop', 'estado_logistico']
+    });
+
+    const totalInversion = userOrders.reduce((acc, o) => acc + Number(o.precio_venta_cop), 0);
+    const completedOrders = userOrders.filter(o => o.estado_logistico === 'entregado').length;
+
+    // Lógica de Niveles
+    let calculadoNivel = NIVEL_HYPE.BRONZE;
+    let proximoNivel = NIVEL_HYPE.SILVER;
+    let metaPesos = 1000000;
+    let metaPedidos = 2;
+
+    if (totalInversion >= 5000000 || completedOrders >= 10) {
+      calculadoNivel = NIVEL_HYPE.DIAMOND;
+      proximoNivel = null;
+    } else if (totalInversion >= 2500000 || completedOrders >= 5) {
+      calculadoNivel = NIVEL_HYPE.GOLD;
+      proximoNivel = NIVEL_HYPE.DIAMOND;
+      metaPesos = 5000000;
+      metaPedidos = 10;
+    } else if (totalInversion >= 1000000 || completedOrders >= 2) {
+      calculadoNivel = NIVEL_HYPE.SILVER;
+      proximoNivel = NIVEL_HYPE.GOLD;
+      metaPesos = 2500000;
+      metaPedidos = 5;
+    }
+
+    // Auto-update nivel si el calculado es superior
+    if (calculadoNivel !== user.nivel) {
+       await user.update({ nivel: calculadoNivel });
+    }
+
+    // Calcular % de avance hacia el siguiente nivel
+    let pctAvance = 100;
+    if (proximoNivel) {
+       const pctPesos = Math.min((totalInversion / metaPesos) * 100, 100);
+       const pctPedidos = Math.min((completedOrders / metaPedidos) * 100, 100);
+       pctAvance = Math.round(Math.max(pctPesos, pctPedidos));
+    }
     
     // Buscar la principal o la última registrada
     const allAddrs = user.direcciones || [];
@@ -29,10 +69,15 @@ export async function getProfile(req, res, next) {
     
     res.json({
        ...user.get({ plain: true }),
+       nivel: calculadoNivel, // Asegurar que devolvemos el actualizado
        ciudad: primaryAddr?.ciudad || null,
        direccion: primaryAddr?.direccion_completa || null,
+       proximo_nivel: proximoNivel,
+       porcentaje_avance: pctAvance,
        stats: {
-          total_pedidos: orderCount
+          total_pedidos: userOrders.length,
+          pedidos_completados: completedOrders,
+          inversion_total: totalInversion
        }
     });
   } catch (err) { next(err); }
