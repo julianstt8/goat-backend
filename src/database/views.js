@@ -13,7 +13,7 @@ export async function syncViews() {
       p.id AS pedido_id,
       u.nombre_completo AS cliente,
       u.telefono,
-      pr.referencia AS producto,
+      pr.referencia,
       p.precio_venta_cop,
       COALESCE(SUM(pg.monto_cop), 0) AS total_pagado,
       (p.precio_venta_cop - COALESCE(SUM(pg.monto_cop), 0)) AS saldo_restante,
