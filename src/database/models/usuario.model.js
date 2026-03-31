@@ -59,6 +59,14 @@ export const Usuario = sequelize.define('Usuario', {
   fecha_registro: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW
+  },
+  talla_calzado_us: {
+    type: DataTypes.STRING(10),
+    allowNull: true
+  },
+  talla_ropa: {
+    type: DataTypes.STRING(10),
+    allowNull: true
   }
 }, {
   tableName: 'usuarios',
@@ -94,5 +102,9 @@ export function associate(models) {
   Usuario.hasMany(models.DireccionUsuario, {
     foreignKey: 'usuario_id',
     as: 'direcciones'
+  });
+  Usuario.hasMany(models.Wishlist, {
+    foreignKey: 'usuario_id',
+    as: 'wishlist'
   });
 }

@@ -11,6 +11,7 @@ import expenseRoutes from './expense.routes.js';
 import calculateRoutes from './calculate.routes.js';
 import configRoutes from './config.routes.js';
 import reportRoutes from './report.routes.js';
+import profileRoutes from './profile.routes.js';
 
 const router = Router();
 
@@ -31,6 +32,7 @@ router.use('/auth', authRoutes);
 
 // Usuarios y clientes
 router.use('/users', userRoutes);
+router.use('/profile', profileRoutes);
 
 // Catálogo
 router.use('/products', productRoutes);
