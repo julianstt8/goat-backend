@@ -47,6 +47,10 @@ export async function login(req, res, next) {
 
     const usuario = await Usuario.findOne({ where: { email } });
 
+    if (!usuario) {
+      return res.status(401).json({ message: 'Credenciales inválidas' });
+    }
+
     // usuario existe pero no tiene activo el acceso
     if (!usuario.activo) {
       return res.status(403).json({ message: 'Usuario inactivo' });

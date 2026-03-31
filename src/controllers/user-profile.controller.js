@@ -121,7 +121,12 @@ export async function listPayments(req, res, next) {
           model: Pedido,
           as: 'pedido',
           where: { usuario_id: req.user.id },
-          attributes: ['referencia', 'precio_venta_cop']
+          attributes: ['precio_venta_cop'],
+          include: [{
+             model: Producto,
+             as: 'producto',
+             attributes: ['referencia']
+          }]
        }],
        order: [['fecha_pago', 'DESC']]
     });
